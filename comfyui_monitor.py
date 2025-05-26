@@ -29,6 +29,7 @@ class ComfyUIMonitor:
         self.known_prompts = set()  # 记录已知的prompt IDs
         self.running = False
         self.thread = None
+        self.initialized = False  # 添加初始化标志
     
     def start(self):
         """启动监控线程"""
@@ -37,6 +38,19 @@ class ComfyUIMonitor:
             return
         
         self.running = True
+        
+        # 在启动前先加载现有历史记录，避免重复处理
+        try:
+            history = self.get_history()
+            if history:
+                # 只记录ID，不处理任务
+                initial_ids = set(history.keys())
+                self.known_prompts.update(initial_ids)
+                logger.info(f"已记录 {len(initial_ids)} 个现有任务ID，避免重复处理")
+        except Exception as e:
+            logger.error(f"加载初始历史记录时出错: {str(e)}")
+        
+        self.initialized = True  # 标记为已初始化
         self.thread = Thread(target=self._monitor_loop, daemon=True)
         self.thread.start()
         logger.info(f"开始监控 ComfyUI 任务 (API URL: {self.api_url})")
@@ -308,6 +322,41 @@ class PrettyComfyUIMonitor(ComfyUIMonitor):
         print(f"{Fore.BLUE}╚{border}╝{Style.RESET_ALL}")
         print()  # 空行分隔
 
+class APINotifyMonitor(PrettyComfyUIMonitor):
+    def on_task_completed(self, prompt_id, data, output_files, node_outputs, status_info):
+        """任务完成时发送通知到API"""
+        try:
+            # 构建请求数据
+            request_data = {
+                "prompt_id": str(prompt_id),
+                "status": str(status_info.get("status", "unknown"))
+                }
+            
+            # 发送API请求
+            result = requests.post(
+                "https://ai.gempoll.com/app-api/ai/image/comfyui/notify", 
+                json=request_data
+            )
+            
+            # 检查响应状态
+            if result.status_code == 200:
+                logger.info(f"成功发送任务完成通知: {prompt_id}")
+                print(f"{Fore.GREEN}API通知成功 ({result.status_code}){Style.RESET_ALL}")
+            else:
+                logger.warning(f"API响应非200状态码: {result.status_code}")
+                print(f"{Fore.YELLOW}API通知状态: {result.status_code}{Style.RESET_ALL}")
+            
+            print(f"{Fore.CYAN}API响应:{Style.RESET_ALL}")
+            print(result.text[:500])  # 限制输出长度
+            
+        except Exception as e:
+            logger.error(f"发送API通知时出错: {str(e)}")
+            print(f"{Fore.RED}API通知失败: {str(e)}{Style.RESET_ALL}")
+        
+        # 调用父类方法以保留美化输出
+        super().on_task_completed(prompt_id, data, output_files, node_outputs, status_info)
+
+
 # 主函数
 if __name__ == "__main__":
     import sys
@@ -320,7 +369,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # 创建并启动监控器
-    monitor = PrettyComfyUIMonitor(api_url=args.url, poll_interval=args.interval)
+    # monitor = PrettyComfyUIMonitor(api_url=args.url, poll_interval=args.interval)
+    monitor = APINotifyMonitor(api_url=args.url, poll_interval=args.interval)
     
     try:
         # 清屏
@@ -336,6 +386,11 @@ if __name__ == "__main__":
         print(f"轮询间隔: {args.interval} 秒")
         print("按 Ctrl+C 终止")
         print()
+        
+        # 开始监控前
+        print(f"正在加载现有任务历史，避免重复通知...")
+        # 开始监控后
+        print(f"{Fore.GREEN}已记录 {len(monitor.known_prompts)} 个现有任务，只会通知新任务{Style.RESET_ALL}")
         
         # 开始监控
         monitor.start()
