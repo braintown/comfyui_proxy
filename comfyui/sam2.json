@@ -1,0 +1,153 @@
+{
+  "2": {
+    "inputs": {
+      "start_index": 1,
+      "num_frames": 1,
+      "images": [
+        "25",
+        0
+      ]
+    },
+    "class_type": "GetImageRangeFromBatch",
+    "_meta": {
+      "title": "Get Image or Mask Range From Batch"
+    }
+  },
+  "3": {
+    "inputs": {
+      "text_input": [
+        "19",
+        0
+      ],
+      "task": "caption_to_phrase_grounding",
+      "fill_mask": true,
+      "keep_model_loaded": false,
+      "max_new_tokens": 1024,
+      "num_beams": 3,
+      "do_sample": true,
+      "output_mask_select": "",
+      "seed": 764255268890743,
+      "image": [
+        "2",
+        0
+      ],
+      "florence2_model": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "Florence2Run",
+    "_meta": {
+      "title": "Florence2Run"
+    }
+  },
+  "4": {
+    "inputs": {
+      "model": "microsoft/Florence-2-large-ft",
+      "precision": "bf16",
+      "attention": "sdpa"
+    },
+    "class_type": "DownloadAndLoadFlorence2Model",
+    "_meta": {
+      "title": "DownloadAndLoadFlorence2Model"
+    }
+  },
+  "6": {
+    "inputs": {
+      "model": "sam2.1_hiera_large.safetensors",
+      "segmentor": "video",
+      "device": "cuda",
+      "precision": "bf16"
+    },
+    "class_type": "DownloadAndLoadSAM2Model",
+    "_meta": {
+      "title": "(Down)Load SAM2Model"
+    }
+  },
+  "7": {
+    "inputs": {
+      "keep_model_loaded": true,
+      "coordinates_positive": [
+        "8",
+        0
+      ],
+      "individual_objects": false,
+      "sam2_model": [
+        "6",
+        0
+      ],
+      "image": [
+        "25",
+        0
+      ]
+    },
+    "class_type": "Sam2Segmentation",
+    "_meta": {
+      "title": "Sam2Segmentation"
+    }
+  },
+  "8": {
+    "inputs": {
+      "index": "0",
+      "batch": true,
+      "data": [
+        "3",
+        3
+      ]
+    },
+    "class_type": "Florence2toCoordinates",
+    "_meta": {
+      "title": "Florence2 Coordinates"
+    }
+  },
+  "18": {
+    "inputs": {
+      "mask": [
+        "7",
+        0
+      ]
+    },
+    "class_type": "MaskToImage",
+    "_meta": {
+      "title": "Convert Mask to Image"
+    }
+  },
+  "19": {
+    "inputs": {
+      "Text": "car"
+    },
+    "class_type": "DF_Text",
+    "_meta": {
+      "title": "Text"
+    }
+  },
+  "23": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "18",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "25": {
+    "inputs": {
+      "url": "https://example.com/video.mp4",
+      "force_rate": 0,
+      "force_size": "Disabled",
+      "custom_width": 512,
+      "custom_height": 512,
+      "frame_load_cap": 0,
+      "skip_first_frames": 0,
+      "select_every_nth": 1
+    },
+    "class_type": "LoadVideoFromURL",
+    "_meta": {
+      "title": "Load Video from URL"
+    }
+  }
+}
